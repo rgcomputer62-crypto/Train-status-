@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>RailTrack India — Live Train & PNR Status</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --blue-deep:#0a2463; --blue-mid:#1e4fcf; --blue-bright:#3b82f6;
+      --blue-light:#dbeafe; --success:#10b981; --danger:#ef4444; --warn:#f59e0b;
+    }
+    *{box-sizing:border-box}
+    body{font-family:'DM Sans',sans-serif;background:#f0f6ff;min-height:100vh}
+    h1,h2,h3{font-family:'Syne',sans-serif}
+
+    .header-bar{background:linear-gradient(135deg,#0a2463 0%,#1a3a8f 60%,#1e4fcf 100%);position:relative;overflow:hidden}
+    .header-bar::before{content:'';position:absolute;top:-60px;right:-80px;width:320px;height:320px;background:rgba(255,255,255,0.04);border-radius:50%}
+
+    .tab-bar{background:#fff;border-bottom:2px solid #e0eaff;position:sticky;top:0;z-index:50;box-shadow:0 2px 12px rgba(10,36,99,0.07)}
+    .tab-btn{font-family:'Syne',sans-serif;font-weight:700;font-size:0.88rem;letter-spacing:0.04em;padding:14px 20px;border:none;background:none;cursor:pointer;color:#94a3b8;border-bottom:3px solid transparent;transition:color .2s,border-color .2s;display:flex;align-items:center;gap:8px}
+    .tab-btn.active{color:var(--blue-mid);border-bottom-color:var(--blue-mid)}
+    .tab-btn:hover:not(.active){color:var(--blue-deep)}
+
+    .card{background:#fff;border-radius:20px;box-shadow:0 4px 24px rgba(10,36,99,0.09)}
+    .search-card{box-shadow:0 8px 40px rgba(10,36,99,0.13)}
+
+    .search-input{border:2px solid #dbeafe;border-radius:12px;font-family:'Syne',sans-serif;font-size:1.05rem;letter-spacing:0.04em;outline:none;transition:border-color .2s,box-shadow .2s}
+    .search-input:focus{border-color:var(--blue-bright);box-shadow:0 0 0 4px rgba(59,130,246,0.12)}
+
+    .track-btn{background:linear-gradient(135deg,var(--blue-mid),var(--blue-bright));color:#fff;border-radius:12px;font-family:'Syne',sans-serif;font-weight:700;font-size:0.95rem;letter-spacing:0.04em;border:none;cursor:pointer;transition:transform .15s,box-shadow .15s,opacity .15s;box-shadow:0 4px 18px rgba(30,79,207,0.35)}
+    .track-btn:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(30,79,207,0.4)}
+    .track-btn:active{transform:translateY(0)}
+    .track-btn:disabled{opacity:.65;cursor:not-allowed;transform:none}
+
+    .ad-slot{background:repeating-linear-gradient(45deg,#e0eaff 0,#e0eaff 10px,#f0f6ff 10px,#f0f6ff 20px);border:2px dashed #93c5fd;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#6b90c8;font-family:'Syne',sans-serif;font-size:.78rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
+
+    .badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-family:'Syne',sans-serif;font-weight:700;font-size:.7rem;letter-spacing:.06em;text-transform:uppercase}
+    .badge-success{background:#d1fae5;color:#065f46}
+    .badge-warn{background:#fef3c7;color:#92400e}
+    .badge-danger{background:#fee2e2;color:#991b1b}
+    .badge-info{background:#dbeafe;color:#1e40af}
+
+    .timeline{position:relative;padding-left:36px}
+    .timeline::before{content:'';position:absolute;left:10px;top:12px;bottom:12px;width:3px;background:linear-gradient(to bottom,var(--blue-mid),#bfdbfe);border-radius:4px}
+    .tl-item{position:relative}
+    .tl-dot{position:absolute;left:-30px;top:14px;width:16px;height:16px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 2px var(--blue-mid);z-index:1}
+    .tl-dot.current{background:var(--blue-mid);animation:pulse 1.5s infinite}
+    .tl-dot.passed{background:var(--success);box-shadow:0 0 0 2px var(--success)}
+    .tl-dot.upcoming{background:#fff;box-shadow:0 0 0 2px #93c5fd}
+    @keyframes pulse{0%,100%{box-shadow:0 0 0 4px rgba(30,79,207,0.25)}50%{box-shadow:0 0 0 8px rgba(30,79,207,0.08)}}
+
+    .tl-card{background:#f8faff;border:1.5px solid #e0eaff;border-radius:14px;padding:12px 14px;margin-bottom:10px}
+    .tl-card.current-card{background:linear-gradient(135deg,#eef4ff,#dbeafe);border-color:var(--blue-bright)}
+    .tl-card.upcoming-card{border-color:#bfdbfe}
+
+    .stat-chip{background:#f0f6ff;border:1.5px solid #dbeafe;border-radius:12px;padding:11px 14px;display:flex;flex-direction:column;gap:2px}
+    .stat-chip .label{font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;color:#6b90c8;font-weight:600}
+    .stat-chip .value{font-family:'Syne',sans-serif;font-size:.95rem;font-weight:700;color:var(--blue-deep)}
+
+    .pax-row{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-radius:12px;background:#f8faff;border:1.5px solid #e0eaff;margin-bottom:8px}
+    .pax-num{width:28px;height:28px;border-radius:50%;background:var(--blue-light);color:var(--blue-deep);font-family:'Syne',sans-serif;font-weight:800;font-size:.8rem;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+
+    .train-tag{background:var(--blue-light);color:var(--blue-deep);font-family:'Syne',sans-serif;font-weight:800;border-radius:8px;padding:2px 10px;font-size:.8rem;letter-spacing:.07em}
+
+    .slide-up{animation:slideUp .4s cubic-bezier(.22,1,.36,1)}
+    @keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+
+    .loading-dots span{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--blue-bright);margin:0 3px;animation:dotB 1.1s infinite ease-in-out}
+    .loading-dots span:nth-child(2){animation-delay:.18s}
+    .loading-dots span:nth-child(3){animation-delay:.36s}
+    @keyframes dotB{0%,80%,100%{transform:scale(.7);opacity:.5}40%{transform:scale(1);opacity:1}}
+
+    .error-card{background:#fff5f5;border:2px solid #fecaca;border-radius:16px}
+    .sec-title{font-family:'Syne',sans-serif;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#6b90c8;margin-bottom:10px}
+
+    ::-webkit-scrollbar{width:6px}
+    ::-webkit-scrollbar-track{background:#f0f6ff}
+    ::-webkit-scrollbar-thumb{background:#93c5fd;border-radius:4px}
+  </style>
+</head>
+<body>
+
+<!--
+  ═══════════════════════════════════════════
+  TOP GOOGLE ADSENSE — YAHAN PASTE KARO
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXX" crossorigin="anonymous"></script>
+  <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-XXXXXXXX" data-ad-slot="XXXXXXXX" data-ad-format="auto" data-full-width-responsive="true"></ins>
+  <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+  ═══════════════════════════════════════════
+-->
+<div class="ad-slot w-full h-14 md:h-20 px-4 my-2 max-w-3xl mx-auto">
+  📢 Top Ad — Google AdSense Placeholder
+</div>
+
+<!-- HEADER -->
+<header class="header-bar px-4 py-7 md:py-10 text-white text-center relative z-10">
+  <div class="max-w-2xl mx-auto">
+    <div class="flex items-center justify-center gap-3 mb-1">
+      <svg class="w-9 h-9 opacity-90" viewBox="0 0 48 48" fill="none">
+        <rect x="6" y="14" width="36" height="22" rx="5" fill="white" fill-opacity="0.15" stroke="white" stroke-width="2"/>
+        <rect x="10" y="18" width="12" height="8" rx="2" fill="white" fill-opacity="0.3"/>
+        <rect x="26" y="18" width="12" height="8" rx="2" fill="white" fill-opacity="0.3"/>
+        <circle cx="14" cy="38" r="4" fill="white" fill-opacity="0.5" stroke="white" stroke-width="2"/>
+        <circle cx="34" cy="38" r="4" fill="white" fill-opacity="0.5" stroke="white" stroke-width="2"/>
+        <line x1="6" y1="28" x2="42" y2="28" stroke="white" stroke-width="1.5" stroke-opacity="0.4"/>
+        <line x1="24" y1="14" x2="24" y2="36" stroke="white" stroke-width="1.5" stroke-opacity="0.3"/>
+      </svg>
+      <h1 style="font-family:'Syne',sans-serif;font-weight:800" class="text-3xl md:text-4xl tracking-tight">
+        RailTrack <span style="color:#93c5fd">India</span>
+      </h1>
+    </div>
+    <p class="text-blue-200 text-sm mt-1">Live Train Status &amp; PNR Tracker — Indian Railways</p>
+  </div>
+</header>
+
+<!-- TABS -->
+<div class="tab-bar">
+  <div class="max-w-2xl mx-auto flex">
+    <button class="tab-btn active flex-1 justify-center" id="tab-live" onclick="switchTab('live')">🚂 Live Train Status</button>
+    <button class="tab-btn flex-1 justify-center" id="tab-pnr" onclick="switchTab('pnr')">🎫 PNR Status</button>
+  </div>
+</div>
+
+<main class="max-w-2xl mx-auto px-4 pb-10">
+
+  <!-- LIVE TRAIN PANEL -->
+  <div id="panel-live">
+    <div class="card search-card p-6 md:p-7 mt-5 mb-5">
+      <label class="block text-xs font-semibold text-blue-400 uppercase tracking-widest mb-2" style="font-family:'Syne',sans-serif">Train Number daalo</label>
+      <div class="flex gap-3">
+        <input id="trainInput" type="text" inputmode="numeric" maxlength="5" placeholder="e.g. 12301"
+          class="search-input flex-1 px-4 py-3 text-gray-800" autocomplete="off"
+          onkeydown="if(event.key==='Enter')trackLive()"/>
+        <button id="liveBtn" onclick="trackLive()" class="track-btn px-5 py-3 whitespace-nowrap">🔍 Track</button>
+      </div>
+      <p class="text-xs text-gray-400 mt-2">Example: 12301 (Howrah Rajdhani) · 12951 (Mumbai Rajdhani) · 11077 (Jhelum Express)</p>
+    </div>
+    <div id="liveResult"></div>
+  </div>
+
+  <!-- PNR PANEL -->
+  <div id="panel-pnr" class="hidden">
+    <div class="card search-card p-6 md:p-7 mt-5 mb-5">
+      <label class="block text-xs font-semibold text-blue-400 uppercase tracking-widest mb-2" style="font-family:'Syne',sans-serif">PNR Number daalo</label>
+      <div class="flex gap-3">
+        <input id="pnrInput" type="text" inputmode="numeric" maxlength="10" placeholder="10-digit PNR e.g. 6461250996"
+          class="search-input flex-1 px-4 py-3 text-gray-800" autocomplete="off"
+          onkeydown="if(event.key==='Enter')trackPNR()"/>
+        <button id="pnrBtn" onclick="trackPNR()" class="track-btn px-5 py-3 whitespace-nowrap">🎫 Check</button>
+      </div>
+      <p class="text-xs text-gray-400 mt-2">10-digit PNR number aapki ticket pe hota hai</p>
+    </div>
+    <div id="pnrResult"></div>
+  </div>
+
+</main>
+
+<!--
+  ═══════════════════════════════════════════
+  BOTTOM GOOGLE ADSENSE — YAHAN PASTE KARO
+  ═══════════════════════════════════════════
+-->
+<div class="ad-slot w-full h-14 md:h-20 px-4 my-2 max-w-3xl mx-auto">
+  📢 Bottom Ad — Google AdSense Placeholder
+</div>
+
+<footer class="text-center text-xs text-gray-400 pb-6 px-4">
+  Data via Indian Railway APIs on RapidAPI &nbsp;·&nbsp; Not affiliated with Indian Railways
+</footer>
+
+<script>
+/* ════════════════════════════════════════════
+ *  ✏️  STEP 1 — APNI RAPIDAPI KEY YAHAN DAALO
+ *
+ *  Dono APIs (Live Train + PNR) ke liye
+ *  SAME key kaam karegi — ek hi jagah daalni hai!
+ *
+ *  Key kaise milegi:
+ *  1. rapidapi.com pe login karo
+ *  2. Koi bhi subscribed API open karo
+ *  3. Code Snippets tab → "x-rapidapi-key" copy karo
+ *  4. Neeche paste karo
+ * ════════════════════════════════════════════ */
+const RAPIDAPI_KEY = "fffc94f970msh79ac676b3ae557dp11f294jsn1d2eebd3a87f"; // ← SIRF YAHAN BADLE
+
+// Hosts — change mat karna
+const LIVE_HOST = "indian-railway-irctc.p.rapidapi.com";
+const PNR_HOST  = "irctc-indian-railway-pnr-status.p.rapidapi.com";
+
+/* ── Tab Switch ── */
+function switchTab(tab) {
+  document.getElementById("panel-live").classList.toggle("hidden", tab !== "live");
+  document.getElementById("panel-pnr").classList.toggle("hidden",  tab !== "pnr");
+  document.getElementById("tab-live").classList.toggle("active", tab === "live");
+  document.getElementById("tab-pnr").classList.toggle("active",  tab === "pnr");
+}
+
+/* ══════════════════════════════
+ *  LIVE TRAIN STATUS
+ * ══════════════════════════════ */
+async function trackLive() {
+  const trainNo = document.getElementById("trainInput").value.trim();
+  const btn  = document.getElementById("liveBtn");
+  const area = document.getElementById("liveResult");
+
+  if (!trainNo || !/^\d{4,5}$/.test(trainNo)) {
+    showError(area,"Sahi 4-5 digit ka train number daalo.","⚠️"); return;
+  }
+  btn.disabled = true; btn.textContent = "Tracking…";
+  area.innerHTML = loadingHTML("live train data");
+
+  try {
+    // Apna Vercel backend call kar rahe hain — CORS problem nahi hogi!
+    const res = await fetch(`/api/train?trainNo=${trainNo}`);
+
+    if (!res.ok) throw new Error(res.status===404?"NOT_FOUND":res.status===401||res.status===403?"AUTH":"ERR");
+    const json = await res.json();
+    if (json.error) throw new Error("NOT_FOUND");
+    if (json?.body?.status===false || json?.status===false) throw new Error("NOT_FOUND");
+    renderLive(area, json?.body||json, trainNo);
+
+  } catch(e) {
+    if (e.message==="NOT_FOUND") showError(area,`Train <strong>${trainNo}</strong> nahi mila. Number dobara check karo.`,"🚫");
+    else if (e.message==="AUTH") showError(area,"API Key issue hai. Backend check karo.","🔑");
+    else showError(area,"Live data nahi mila. Internet check karo aur dobara try karo.","📡");
+  } finally {
+    btn.disabled=false; btn.textContent="🔍 Track";
+  }
+}
+
+
+
+/* ══════════════════════════════
+ *  PNR STATUS
+ * ══════════════════════════════ */
+async function trackPNR() {
+  const pnr  = document.getElementById("pnrInput").value.trim();
+  const btn  = document.getElementById("pnrBtn");
+  const area = document.getElementById("pnrResult");
+
+  if (!pnr || !/^\d{10}$/.test(pnr)) {
+    showError(area,"Sahi 10-digit PNR number daalo.","⚠️"); return;
+  }
+  if (RAPIDAPI_KEY === "YOUR_RAPIDAPI_KEY_HERE") {
+    showError(area,"API Key nahi daali! index.html mein <strong>RAPIDAPI_KEY</strong> update karo.","🔑"); return;
+  }
+
+  btn.disabled=true; btn.textContent="Checking…";
+  area.innerHTML = loadingHTML("PNR status");
+
+  try {
+    // Apna Vercel backend call kar rahe hain
+    const res = await fetch(`/api/pnr?pnr=${pnr}`);
+
+    if (!res.ok) throw new Error(res.status===401||res.status===403?"AUTH":res.status===404?"NOT_FOUND":"ERR");
+    const json = await res.json();
+    if (!json || json?.StatusCode==="01" || json?.pnrErrorMessage || json?.errorMsg==="EXCEEDED" || (!json?.trainNum && !json?.TrainNo && !json?.train_number)) throw new Error("NOT_FOUND");
+    renderPNR(area, json, pnr);
+
+  } catch(e) {
+    if (e.message==="NOT_FOUND") showError(area,`PNR <strong>${pnr}</strong> nahi mila. Number check karo ya ticket purani ho.`,"🎫");
+    else if (e.message==="AUTH") showError(area,"API Key galat hai ya PNR API subscribe nahi ki. RapidAPI check karo.","🔑");
+    else showError(area,"PNR data nahi mila. Internet ya API check karo.","📡");
+  } finally {
+    btn.disabled=false; btn.textContent="🎫 Check";
+  }
+}
+
+function renderPNR(area, d, pnr) {
+  // Field names from actual API response
+  const trainNo   = d.trainNum||d.TrainNo||d.train_number||"—";
+  const trainName = d.trainName||d.TrainName||d.train_name||"—";
+  const from      = d.stationFrom||d.BoardingStationName||d.From||"—";
+  const to        = d.stationTo||d.DestinationStationName||d.To||"—";
+  const cls       = d.journeyClass||d.Class||d.class||"—";
+  const doj       = d.departureDate||d.DateOfJourney||d.doj||"—";
+  const quota     = d.passengerDetailsDTO?.[0]?.quotaCode||d.Quota||"—";
+  const chart     = (d.chartStts||"").toUpperCase().includes("CHART PREPARED");
+  const pax       = d.passengerDetailsDTO||d.PassengerList||d.passengers||[];
+
+  let paxHTML = "";
+  if (pax.length > 0) {
+    paxHTML = `<p class="sec-title mt-4">Passengers (${pax.length})</p>`;
+    pax.forEach((p,i) => {
+      const bS  = p.seatStts||p.BookingStatus||p.bookingStatus||"—";
+      const cS  = p.seatStts||p.CurrentStatus||p.currentStatus||bS;
+      const coach= p.coachNo||p.CoachPosition||p.coachPosition||"";
+      const seat = p.seatNo||p.BerthPosition||p.berthPosition||"";
+      const conf = /CNF|CONFIRMED|WL 0/i.test(cS);
+      const wl   = /WL|WAITLIST/i.test(cS);
+      const rac  = /RAC/i.test(cS);
+      paxHTML += `
+        <div class="pax-row">
+          <div class="flex items-center gap-3">
+            <div class="pax-num">${i+1}</div>
+            <div>
+              <div class="text-sm font-semibold text-blue-900" style="font-family:'Syne',sans-serif">Passenger ${i+1}</div>
+              <div class="text-xs text-gray-500">Booking: ${escH(bS)}</div>
+            </div>
+          </div>
+          <div class="flex flex-col items-end gap-1">
+            <span class="badge ${conf?"badge-success":wl?"badge-danger":rac?"badge-warn":"badge-info"}">${escH(cS)}</span>
+            ${coach||seat?`<span class="text-xs text-gray-400">${coach?escH(coach)+" ":""}${seat?escH(seat):""}</span>`:""}
+          </div>
+        </div>`;
+    });
+  } else {
+    paxHTML = `<p class="text-xs text-gray-400 mt-3 text-center">Passenger details API response mein nahi hain.</p>`;
+  }
+
+  area.innerHTML = `
+    <div class="card p-6 slide-up">
+      <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
+        <div>
+          <p class="text-xs text-blue-400 font-semibold uppercase tracking-widest mb-0.5">PNR Status</p>
+          <h2 style="font-family:'Syne',sans-serif;font-weight:800" class="text-xl text-blue-900">${escH(trainName)}</h2>
+          <div class="flex items-center gap-2 mt-1">
+            <span class="train-tag">${escH(trainNo)}</span>
+            ${chart
+              ?`<span class="badge badge-success">✔ Chart Taiyaar</span>`
+              :`<span class="badge badge-warn">⏳ Chart Pending</span>`}
+          </div>
+        </div>
+        <button onclick="trackPNR()" class="text-xs px-4 py-2 rounded-lg border border-blue-200 text-blue-500 hover:bg-blue-50 transition" style="font-family:'Syne',sans-serif;font-weight:600">↻ Refresh</button>
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-2">
+        <div class="stat-chip"><span class="label">PNR</span><span class="value text-sm">${escH(pnr)}</span></div>
+        <div class="stat-chip"><span class="label">Journey Date</span><span class="value text-sm">${escH(doj)}</span></div>
+        <div class="stat-chip"><span class="label">Class</span><span class="value">${escH(cls)}</span></div>
+        <div class="stat-chip"><span class="label">From</span><span class="value text-sm">${escH(from)}</span></div>
+        <div class="stat-chip"><span class="label">To</span><span class="value text-sm">${escH(to)}</span></div>
+        <div class="stat-chip"><span class="label">Quota</span><span class="value text-sm">${escH(quota)}</span></div>
+      </div>
+      ${paxHTML}
+    </div>`;
+}
+
+/* ── Helpers ── */
+function badgeDelay(d) {
+  if (d===0) return `<span class="badge badge-success">✔ On Time</span>`;
+  if (d<=15)  return `<span class="badge badge-warn">⏱ +${d} min</span>`;
+  return `<span class="badge badge-danger">⚠ +${d} min late</span>`;
+}
+function fmtTime(iso) {
+  try {
+    const d=new Date(iso); if(isNaN(d))return iso;
+    return d.toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"})
+      +", "+d.toLocaleDateString("en-IN",{day:"numeric",month:"short"});
+  } catch{return iso}
+}
+function escH(s) {
+  return String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+function loadingHTML(what) {
+  return `<div class="card p-8 text-center slide-up">
+    <div class="loading-dots mb-3"><span></span><span></span><span></span></div>
+    <p class="text-blue-400 font-semibold text-sm" style="font-family:'Syne',sans-serif">Fetching ${what}…</p>
+  </div>`;
+}
+function showError(area, msg, icon="❌") {
+  area.innerHTML=`<div class="error-card p-6 text-center slide-up">
+    <div class="text-4xl mb-3">${icon}</div>
+    <h3 style="font-family:'Syne',sans-serif;font-weight:700" class="text-red-700 text-lg mb-1">Kuch galat hua</h3>
+    <p class="text-red-500 text-sm leading-relaxed">${msg}</p>
+  </div>`;
+}
+
+/* ══════════════════════════════
+ *  renderLive for railwayapi.site
+ * ══════════════════════════════ */
+function renderLive(area, data, trainNo) {
+  const name    = data.train_name || data.trainName || "Train " + trainNo;
+  const curStn  = data.current_station || data.currentStation || {};
+  const route   = data.route || data.stations || data.trainRoute || [];
+  const delay   = parseInt(data.delay || data.delayInMinutes || 0);
+  const dBadge  = badgeDelay(delay);
+  const curCode = curStn.station_code || curStn.stationCode || "";
+  const curIdx  = route.findIndex(s => (s.station_code||s.stationCode||s.StationCode) === curCode);
+  const nxtStn  = curIdx >= 0 && curIdx < route.length-1 ? route[curIdx+1] : null;
+
+  let tlHTML = `<p class="sec-title">Station Timeline</p><div class="timeline">`;
+  route.forEach((s, i) => {
+    const sCode = s.station_code||s.stationCode||s.StationCode||"";
+    const sName = s.station_name||s.stationName||s.StationName||"Station";
+    const isCur = sCode === curCode;
+    const isPas = i < curIdx;
+    const dot   = isPas?"passed":isCur?"current":"upcoming";
+    const card  = isCur?"current-card":isPas?"":"upcoming-card";
+    const sa    = s.scheduled_arrival||s.arrival||s.ScheduleArrival||"";
+    const aa    = s.actual_arrival||s.ActualArrival||"";
+    const sd    = parseInt(s.delay||s.DelayInDeparture||0)||0;
+    tlHTML += `
+      <div class="tl-item">
+        <div class="tl-dot ${dot}"></div>
+        <div class="tl-card ${card}">
+          <div class="flex flex-wrap items-center gap-2">
+            <span style="font-family:'Syne',sans-serif;font-weight:700" class="text-blue-900 text-sm">${escH(sName)}</span>
+            <span class="train-tag">${escH(sCode)}</span>
+            ${isCur?`<span class="badge badge-info">🚉 YAHAN HAI</span>${dBadge}`:""}
+          </div>
+          <div class="flex flex-wrap gap-3 mt-1 text-xs text-gray-500">
+            ${sa&&sa!=="Source"?`<span>🕐 Arr: <b>${escH(sa)}</b></span>`:""}
+            ${aa&&aa!=="Source"&&aa!==sa?`<span>✅ Actual: <b>${escH(aa)}</b></span>`:""}
+            ${sd>0?`<span style="color:var(--danger)">⏱ +${sd} min</span>`:""}
+          </div>
+        </div>
+      </div>`;
+  });
+  tlHTML += `</div>`;
+
+  area.innerHTML = `
+    <div class="card p-6 slide-up">
+      <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
+        <div>
+          <p class="text-xs text-blue-400 font-semibold uppercase tracking-widest mb-0.5">Live Train Status</p>
+          <h2 style="font-family:'Syne',sans-serif;font-weight:800" class="text-xl text-blue-900">${escH(name)}</h2>
+        </div>
+        <button onclick="trackLive()" class="text-xs px-4 py-2 rounded-lg border border-blue-200 text-blue-500 hover:bg-blue-50 transition" style="font-family:'Syne',sans-serif;font-weight:600">↻ Refresh</button>
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+        <div class="stat-chip"><span class="label">Train No.</span><span class="value">${escH(trainNo)}</span></div>
+        <div class="stat-chip"><span class="label">Delay</span><span class="value" style="color:${delay===0?"var(--success)":delay<=15?"var(--warn)":"var(--danger)"}">${delay===0?"On Time":"+"+delay+" min"}</span></div>
+        <div class="stat-chip"><span class="label">Current Stn</span><span class="value text-sm">${escH(curStn.station_name||curStn.StationName||"—")}</span></div>
+        <div class="stat-chip"><span class="label">Next Stn</span><span class="value text-sm">${escH(nxtStn?nxtStn.station_name||nxtStn.StationName:"—")}</span></div>
+      </div>
+      ${tlHTML}
+    </div>`;
+}
+
+/* ══════════════════════════════
+ *  renderLiveErail (erail.in format)
+ * ══════════════════════════════ */
+function renderLiveErail(area, text, trainNo) {
+  // erail.in returns pipe/tilde separated — treat as not found and show friendly message
+  showError(area, `Train <strong>${trainNo}</strong> ka live data abhi available nahi hai. Thodi der mein try karo.`, "🚂");
+}
+
+</script>
+</body>
+</html>
